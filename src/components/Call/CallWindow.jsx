@@ -17,6 +17,22 @@ export default function CallWindow({ call, onEndCall }) {
 
   console.log('📞 CallWindow rendered with call:', call?.id)
 
+  // Resume AudioContext to allow audio playback
+  useEffect(() => {
+    const resumeAudio = async () => {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioContext.state === 'suspended') {
+          await audioContext.resume();
+          console.log('🔊 AudioContext resumed');
+        }
+      } catch (err) {
+        console.error('Error resuming AudioContext:', err);
+      }
+    };
+    resumeAudio();
+  }, []);
+
   // Get current user
   useEffect(() => {
     const getCurrentUser = async () => {
