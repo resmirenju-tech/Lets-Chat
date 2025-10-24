@@ -31,7 +31,13 @@ export function useWebRTC(callId, userId, peerId, isInitiator) {
         setLocalStream(stream);
       } catch (err) {
         console.error('❌ Media access error:', err);
-        alert('Please allow access to camera and microphone');
+        if (err.name === 'NotAllowedError') {
+          alert('📹 Camera/microphone permission denied.\n\n1. Check browser settings\n2. Try in normal mode (not Incognito)\n3. Make sure camera/mic aren\'t blocked');
+        } else if (err.name === 'NotFoundError') {
+          alert('❌ No camera/microphone found on your device');
+        } else {
+          alert('❌ Media access error: ' + err.message);
+        }
       }
     }
 
