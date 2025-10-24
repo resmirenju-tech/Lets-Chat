@@ -138,7 +138,14 @@ export default function CallWindow({ call, onEndCall }) {
   useEffect(() => {
     const fetchOtherUserInfo = async () => {
       try {
+        if (!call?.initiator_id || !call?.recipient_id) {
+          console.warn('⚠️ Call data incomplete, cannot fetch user info')
+          return
+        }
+
         const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+
         const otherUserId = call.initiator_id === user.id ? call.recipient_id : call.initiator_id
 
         const result = await userService.getUserProfile(otherUserId)
@@ -150,10 +157,10 @@ export default function CallWindow({ call, onEndCall }) {
       }
     }
 
-    if (call) {
+    if (call?.id) {
       fetchOtherUserInfo()
     }
-  }, [call])
+  }, [call?.id, call?.initiator_id, call?.recipient_id])
 
   // Play remote audio stream
   const playRemoteStream = (remoteStream) => {

@@ -33,11 +33,18 @@ class WebRTCService {
   // Create peer connection (initiator = true for caller, false for receiver)
   async createPeer(peerId, initiator, currentUserId, callId) {
     try {
+      console.log('🔧 Creating peer with:', { peerId, initiator, currentUserId, callId })
+
+      // Validate inputs
+      if (!peerId) throw new Error('peerId is required')
+      if (!currentUserId) throw new Error('currentUserId is required')
+      if (!callId) throw new Error('callId is required')
+
       const stream = await this.getLocalStream()
 
       const peer = new SimplePeer({
         initiator,
-        trickleIce: false, // Collect all ICE candidates before sending
+        trickleIce: false,
         stream,
         config: {
           iceServers: [
@@ -47,15 +54,15 @@ class WebRTCService {
         },
       })
 
-      // Handle signal event (when peer needs to send offer/answer/candidates)
+      // Handle signal event
       peer.on('signal', (data) => {
-        console.log('📡 Signal data:', data)
+        console.log('📡 Signal data generated:', data.type)
         this.sendSignal(peerId, currentUserId, callId, data)
       })
 
-      // Handle stream event (when receiving remote audio)
+      // Handle stream event
       peer.on('stream', (remoteStream) => {
-        console.log('🎵 Received remote stream:', remoteStream)
+        console.log('🎵 Received remote stream')
         if (this.signalListeners['stream']) {
           this.signalListeners['stream'](remoteStream, peerId)
         }
@@ -63,7 +70,7 @@ class WebRTCService {
 
       // Handle errors
       peer.on('error', (error) => {
-        console.error('❌ Peer error:', error)
+        console.error('❌ Peer error:', error.message)
         if (this.signalListeners['error']) {
           this.signalListeners['error'](error, peerId)
         }
@@ -71,7 +78,7 @@ class WebRTCService {
 
       // Handle connection close
       peer.on('close', () => {
-        console.log('📵 Peer connection closed:', peerId)
+        console.log('📵 Peer connection closed')
         if (this.signalListeners['close']) {
           this.signalListeners['close'](peerId)
         }
@@ -79,10 +86,10 @@ class WebRTCService {
       })
 
       this.peers[peerId] = peer
-      console.log('✅ Peer created for:', peerId)
+      console.log('✅ Peer created successfully for:', peerId)
       return peer
     } catch (error) {
-      console.error('Error creating peer:', error)
+      console.error('❌ Error creating peer:', error.message)
       throw error
     }
   }
