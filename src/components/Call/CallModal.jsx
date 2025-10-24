@@ -117,6 +117,11 @@ export default function CallModal({ call, onAccept, onReject }) {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)()
       audioContextRef.current = audioContext
       
+      // Resume audio context (required for user interaction in modern browsers)
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(err => console.error('AudioContext resume failed:', err))
+      }
+      
       // Create initial tone
       createRingTone(audioContext)
       
@@ -225,6 +230,12 @@ export default function CallModal({ call, onAccept, onReject }) {
       setIsAccepted(true) // 🎯 Mark as accepted to prevent auto-reject
       clearAutoDisconnectTimer()
       stopRingingSound()
+      
+      // Resume audio context on user interaction
+      if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
+        await audioContextRef.current.resume()
+      }
+      
       console.log('📞 User clicked accept:', call.id)
       // Don't call acceptCall here - it's now called in MainApp.handleAcceptCall
       // This prevents duplicate entries in call_history
