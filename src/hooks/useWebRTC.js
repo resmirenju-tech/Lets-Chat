@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import Peer from 'peerjs';
 import { supabase } from '@/lib/supabase';
 
-export function useWebRTC(callId, userId, peerId, isInitiator) {
+export function useWebRTC(callId, userId, peerId, isInitiator, callType = 'voice') {
   const peerRef = useRef(null);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
@@ -16,17 +16,30 @@ export function useWebRTC(callId, userId, peerId, isInitiator) {
     async function getLocalStream() {
       try {
         console.log('🎤 Requesting media access...');
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-          video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-        });
+        
+        // Different constraints for voice vs video
+        const constraints = callType === 'video' 
+          ? {
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+              },
+              video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              },
+            }
+          : {
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+              },
+              video: false,
+            };
+        
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         console.log('✅ Media stream obtained');
         setLocalStream(stream);
       } catch (err) {
@@ -46,7 +59,7 @@ export function useWebRTC(callId, userId, peerId, isInitiator) {
     return () => {
       localStream?.getTracks().forEach(track => track.stop());
     };
-  }, []);
+  }, [callType]);
 
   // Setup PeerJS connection
   useEffect(() => {

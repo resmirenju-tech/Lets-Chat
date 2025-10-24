@@ -50,7 +50,8 @@ export default function CallWindow({ call, onEndCall }) {
     shouldSetupWebRTC ? call.id : null,
     shouldSetupWebRTC ? currentUser.id : null,
     shouldSetupWebRTC ? peerId : null,
-    isInitiator
+    isInitiator,
+    call?.call_type || 'voice'
   )
 
   // Display local stream

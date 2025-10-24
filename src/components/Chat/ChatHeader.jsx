@@ -47,6 +47,22 @@ export default function ChatHeader({ conversation, onBack, onCallInitiated }) {
     }
   }
 
+  const handleInitiateVideoCall = async () => {
+    try {
+      const result = await callService.initiateCall(conversation.userId, 'video')
+      if (result.success) {
+        toast.success('Video call initiated...')
+        if (onCallInitiated) {
+          onCallInitiated(result.call)
+        }
+      } else {
+        toast.error('Failed to initiate video call: ' + result.error)
+      }
+    } catch (error) {
+      toast.error('Error: ' + error.message)
+    }
+  }
+
   if (loading || !profile) {
     return <div className="chat-header">Loading...</div>
   }
@@ -100,7 +116,7 @@ export default function ChatHeader({ conversation, onBack, onCallInitiated }) {
             </svg>
           </span>
         </button>
-        <button className="action-button video-btn" title="Video Call">
+        <button className="action-button video-btn" title="Video Call" onClick={handleInitiateVideoCall}>
           <span className="call-phone-icon">
             <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M23 7l-7 5 7 5V7z"></path>
