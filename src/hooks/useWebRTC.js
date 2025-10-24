@@ -9,13 +9,7 @@ export function useWebRTC(callId, userId, peerId, isInitiator) {
   const [connectionState, setConnectionState] = useState('disconnected');
   const callRef = useRef(null);
   const channelRef = useRef(null);
-  const sessionIdRef = useRef(null);
-
-  // Generate unique session ID on mount
-  if (!sessionIdRef.current) {
-    sessionIdRef.current = `${userId}-${Math.random().toString(36).substr(2, 9)}`;
-    console.log('🆔 Generated session ID:', sessionIdRef.current);
-  }
+  const [actualPeerId, setActualPeerId] = useState(peerId);
 
   // Get local media stream
   useEffect(() => {
@@ -64,7 +58,7 @@ export function useWebRTC(callId, userId, peerId, isInitiator) {
         console.log('🔧 Creating PeerJS connection...');
 
         // Create Peer instance (PeerJS handles WebRTC signaling internally)
-        const peer = new Peer(sessionIdRef.current, {
+        const peer = new Peer(userId, {
           host: '0.peerjs.com',
           secure: true,
           port: 443,
@@ -75,7 +69,7 @@ export function useWebRTC(callId, userId, peerId, isInitiator) {
         peerRef.current = peer;
 
         peer.on('open', () => {
-          console.log('✅ PeerJS connected, ID:', sessionIdRef.current);
+          console.log('✅ PeerJS connected, ID:', userId);
           if (isActive) setConnectionState('ready');
         });
 
