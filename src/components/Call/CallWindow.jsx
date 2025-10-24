@@ -18,19 +18,28 @@ export default function CallWindow({ call, onEndCall }) {
   const remoteAudioRef = useRef(null)
   const signalChannelRef = useRef(null)
 
+  console.log('🔍 CallWindow rendered with call prop:', call)
+
   // Get current user
   useEffect(() => {
     const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setCurrentUser(user)
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        console.log('👤 Current user set:', user?.id)
+        setCurrentUser(user)
+      } catch (error) {
+        console.error('❌ Error getting current user:', error)
+      }
     }
     getCurrentUser()
   }, [])
 
   // Initialize WebRTC connection
   useEffect(() => {
+    console.log('📋 WebRTC effect triggered. call:', call?.id, 'currentUser:', currentUser?.id)
+
     if (!call || !currentUser) {
-      console.log('⏳ Waiting for call and user data...')
+      console.log('⏳ Waiting for call and user data... call:', !!call, 'currentUser:', !!currentUser)
       return
     }
 
@@ -38,10 +47,14 @@ export default function CallWindow({ call, onEndCall }) {
 
     const initializeWebRTC = async () => {
       try {
-        console.log('📞 Initializing WebRTC for call:', call?.id)
+        console.log('🚀 Starting WebRTC initialization')
+        console.log('   - call.id:', call?.id)
+        console.log('   - call.initiator_id:', call?.initiator_id)
+        console.log('   - call.recipient_id:', call?.recipient_id)
+        console.log('   - currentUser.id:', currentUser?.id)
         
         if (!call?.id || !call?.initiator_id || !call?.recipient_id) {
-          console.error('❌ Missing required call data')
+          console.error('❌ Missing required call data:', { id: call?.id, initiator: call?.initiator_id, recipient: call?.recipient_id })
           return
         }
 
@@ -49,7 +62,9 @@ export default function CallWindow({ call, onEndCall }) {
         const isInitiator = call.initiator_id === currentUser.id
         const otherUserId = isInitiator ? call.recipient_id : call.initiator_id
 
-        console.log('👤 Initiator:', isInitiator, 'Other user:', otherUserId)
+        console.log('✅ Call data valid. Creating peer...')
+        console.log('   - isInitiator:', isInitiator)
+        console.log('   - otherUserId:', otherUserId)
 
         // Create peer connection
         await webrtcService.createPeer(
@@ -59,21 +74,26 @@ export default function CallWindow({ call, onEndCall }) {
           call.id
         )
 
-        if (!isActive) return
+        if (!isActive) {
+          console.log('⚠️ Component unmounted, skipping event setup')
+          return
+        }
+
+        console.log('📡 Peer created, setting up events...')
 
         // Setup event listeners
         webrtcService.on('stream', (remoteStream) => {
-          console.log('🎵 Playing remote stream')
+          console.log('🎵 Stream event triggered')
           if (isActive) playRemoteStream(remoteStream)
         })
 
         webrtcService.on('error', (error) => {
-          console.error('❌ WebRTC error:', error)
+          console.error('❌ WebRTC error event:', error)
           if (isActive) toast.error('Connection error: ' + error.message)
         })
 
         webrtcService.on('close', () => {
-          console.log('📵 Peer connection closed')
+          console.log('📵 Close event triggered')
           if (isActive) {
             setConnectionReady(false)
             setConnectionMessage('Connection lost')
@@ -81,14 +101,16 @@ export default function CallWindow({ call, onEndCall }) {
         })
 
         // Subscribe to signals from remote peer
+        console.log('🔗 Subscribing to signals for call:', call.id)
         signalChannelRef.current = webrtcService.subscribeToSignals(
           call.id,
           (payload) => {
-            console.log('📬 Received signal payload:', payload)
+            console.log('📬 Signal received:', payload?.from)
             const { from, to, data } = payload
             
             // Only process signals meant for us
             if (to === currentUser.id && from === otherUserId) {
+              console.log('✅ Processing signal from:', from)
               webrtcService.handleSignal(from, data)
             }
           }
@@ -102,7 +124,7 @@ export default function CallWindow({ call, onEndCall }) {
           console.log('✅ WebRTC initialized successfully')
         }
       } catch (error) {
-        console.error('Error initializing WebRTC:', error)
+        console.error('❌ Error initializing WebRTC:', error)
         if (isActive) {
           toast.error('Failed to initialize connection: ' + error.message)
           setConnectionMessage('Connection failed')
@@ -110,9 +132,11 @@ export default function CallWindow({ call, onEndCall }) {
       }
     }
 
+    console.log('🎯 Calling initializeWebRTC')
     initializeWebRTC()
 
     return () => {
+      console.log('🧹 Cleanup: unsubscribing and closing WebRTC')
       isActive = false
       if (signalChannelRef.current) {
         signalChannelRef.current.unsubscribe()
