@@ -35,11 +35,21 @@ export default function CallWindow({ call, onEndCall }) {
   const isInitiator = call?.initiator_id === currentUser?.id
   const peerId = isInitiator ? call?.recipient_id : call?.initiator_id
 
+  console.log('🔍 Call Role Check:')
+  console.log('   currentUser.id:', currentUser?.id)
+  console.log('   call.initiator_id:', call?.initiator_id)
+  console.log('   call.recipient_id:', call?.recipient_id)
+  console.log('   isInitiator:', isInitiator)
+  console.log('   peerId (who to call):', peerId)
+
+  // Only setup WebRTC if we have currentUser
+  const shouldSetupWebRTC = !!currentUser?.id && !!call?.id && !!peerId
+
   // Setup WebRTC
   const { localStream, remoteStream, connectionState } = useWebRTC(
-    call?.id,
-    currentUser?.id,
-    peerId,
+    shouldSetupWebRTC ? call.id : null,
+    shouldSetupWebRTC ? currentUser.id : null,
+    shouldSetupWebRTC ? peerId : null,
     isInitiator
   )
 
