@@ -141,9 +141,23 @@ class WebRTCService {
     try {
       const channel = supabase.channel(`signal_${callId}`)
 
-      channel.on('broadcast', { event: 'webrtc_signal' }, (payload) => {
-        console.log('📬 Received signal:', payload.payload)
-        callback(payload.payload)
+      channel.on('broadcast', { event: 'webrtc_signal' }, (message) => {
+        try {
+          console.log('📬 Received broadcast message:', message)
+          
+          // Supabase wraps the payload in message.payload
+          const signalPayload = message.payload
+          
+          if (!signalPayload) {
+            console.warn('⚠️ No payload in message')
+            return
+          }
+          
+          console.log('📬 Signal payload:', signalPayload)
+          callback(signalPayload)
+        } catch (err) {
+          console.error('Error processing broadcast message:', err)
+        }
       })
 
       channel.subscribe()
