@@ -1,0 +1,17 @@
+# Windows PowerShell or Mac Terminal
+cd C:\Users\resmi\Projects
+
+# Or navigate to where you want the project
+
+npm create vite@latest chatflow -- --template react
+cd chatflow
+npm install
+.3: Install Dependencies
+npm install @supabase/supabase-js
+npm install react-router-dom
+npm install @mui/material @emotion/react @emotion/styled
+npm install react-hot-toast
+npm install @tanstack/react-query
+npm install date-fns
+npm install simple-peer
+npm install socket.io-client
