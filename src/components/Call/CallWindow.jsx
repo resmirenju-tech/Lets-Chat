@@ -105,13 +105,23 @@ export default function CallWindow({ call, onEndCall }) {
         signalChannelRef.current = webrtcService.subscribeToSignals(
           call.id,
           (payload) => {
-            console.log('📬 Signal received:', payload?.from)
-            const { from, to, data } = payload
-            
-            // Only process signals meant for us
-            if (to === currentUser.id && from === otherUserId) {
-              console.log('✅ Processing signal from:', from)
-              webrtcService.handleSignal(from, data)
+            try {
+              console.log('📬 Signal received:', payload)
+              
+              if (!payload) {
+                console.warn('⚠️ Empty payload received')
+                return
+              }
+              
+              const { from, to, data } = payload
+              
+              // Only process signals meant for us
+              if (to === currentUser.id && from === otherUserId) {
+                console.log('✅ Processing signal from:', from)
+                webrtcService.handleSignal(from, data)
+              }
+            } catch (err) {
+              console.error('Error processing signal:', err)
             }
           }
         )
