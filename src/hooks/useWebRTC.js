@@ -137,6 +137,7 @@ export function useWebRTC(callId, userId, peerId, isInitiator, callType = 'voice
 
           peer.on('call', (call) => {
             console.log('📞 Incoming call from:', call.peer);
+            console.log('📞 Answering call with stream:', localStream ? '✅' : '❌');
             if (isActive) setConnectionState('connecting');
 
             // Answer the call
