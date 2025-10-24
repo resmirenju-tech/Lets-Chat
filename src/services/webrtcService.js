@@ -33,14 +33,16 @@ class WebRTCService {
   // Create peer connection (initiator = true for caller, false for receiver)
   async createPeer(peerId, initiator, currentUserId, callId) {
     try {
-      console.log('🔧 Creating peer with:', { peerId, initiator, currentUserId, callId })
+      if (!peerId || !currentUserId || !callId) {
+        throw new Error('Missing required parameters: peerId, currentUserId, or callId')
+      }
 
-      // Validate inputs
-      if (!peerId) throw new Error('peerId is required')
-      if (!currentUserId) throw new Error('currentUserId is required')
-      if (!callId) throw new Error('callId is required')
-
+      console.log('🔧 Creating peer...')
       const stream = await this.getLocalStream()
+      
+      if (!stream) {
+        throw new Error('Failed to get local stream')
+      }
 
       const peer = new SimplePeer({
         initiator,
@@ -56,40 +58,56 @@ class WebRTCService {
 
       // Handle signal event
       peer.on('signal', (data) => {
-        console.log('📡 Signal data generated:', data.type)
-        this.sendSignal(peerId, currentUserId, callId, data)
+        try {
+          console.log('📡 Signal generated:', data.type)
+          this.sendSignal(peerId, currentUserId, callId, data)
+        } catch (err) {
+          console.error('Error in signal handler:', err)
+        }
       })
 
       // Handle stream event
       peer.on('stream', (remoteStream) => {
-        console.log('🎵 Received remote stream')
-        if (this.signalListeners['stream']) {
-          this.signalListeners['stream'](remoteStream, peerId)
+        try {
+          console.log('🎵 Received remote stream')
+          if (this.signalListeners['stream']) {
+            this.signalListeners['stream'](remoteStream, peerId)
+          }
+        } catch (err) {
+          console.error('Error in stream handler:', err)
         }
       })
 
       // Handle errors
       peer.on('error', (error) => {
-        console.error('❌ Peer error:', error.message)
-        if (this.signalListeners['error']) {
-          this.signalListeners['error'](error, peerId)
+        console.error('❌ Peer error:', error?.message || error)
+        try {
+          if (this.signalListeners['error']) {
+            this.signalListeners['error'](error, peerId)
+          }
+        } catch (err) {
+          console.error('Error in error handler:', err)
         }
       })
 
       // Handle connection close
       peer.on('close', () => {
-        console.log('📵 Peer connection closed')
-        if (this.signalListeners['close']) {
-          this.signalListeners['close'](peerId)
+        try {
+          console.log('📵 Peer connection closed')
+          if (this.signalListeners['close']) {
+            this.signalListeners['close'](peerId)
+          }
+          delete this.peers[peerId]
+        } catch (err) {
+          console.error('Error in close handler:', err)
         }
-        delete this.peers[peerId]
       })
 
       this.peers[peerId] = peer
-      console.log('✅ Peer created successfully for:', peerId)
+      console.log('✅ Peer created')
       return peer
     } catch (error) {
-      console.error('❌ Error creating peer:', error.message)
+      console.error('❌ createPeer error:', error?.message || error)
       throw error
     }
   }
