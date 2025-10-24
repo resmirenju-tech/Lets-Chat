@@ -81,28 +81,36 @@ export function useWebRTC(callId, userId, peerId, isInitiator) {
         // If initiator, make the call
         if (isInitiator) {
           console.log('📞 Initiating call to:', peerId);
+          console.log('   Initiator ID:', userId);
+          console.log('   Local stream:', localStream ? '✅ ready' : '❌ missing');
           if (isActive) setConnectionState('connecting');
 
-          const call = peer.call(peerId, localStream);
-          callRef.current = call;
+          try {
+            const call = peer.call(peerId, localStream);
+            console.log('📱 peer.call() executed');
+            callRef.current = call;
 
-          call.on('stream', (remoteStream) => {
-            console.log('🎬 Received remote stream');
-            if (isActive) {
-              setRemoteStream(remoteStream);
-              setConnectionState('connected');
-            }
-          });
+            call.on('stream', (remoteStream) => {
+              console.log('🎬 Received remote stream');
+              if (isActive) {
+                setRemoteStream(remoteStream);
+                setConnectionState('connected');
+              }
+            });
 
-          call.on('close', () => {
-            console.log('📵 Call closed');
-            if (isActive) setConnectionState('disconnected');
-          });
+            call.on('close', () => {
+              console.log('📵 Call closed');
+              if (isActive) setConnectionState('disconnected');
+            });
 
-          call.on('error', (err) => {
-            console.error('❌ Call error:', err);
+            call.on('error', (err) => {
+              console.error('❌ Call error:', err);
+              if (isActive) setConnectionState('error');
+            });
+          } catch (err) {
+            console.error('❌ Error making call:', err);
             if (isActive) setConnectionState('error');
-          });
+          }
         } else {
           // Receiver - wait for incoming call
           console.log('📞 Waiting for incoming call...');
