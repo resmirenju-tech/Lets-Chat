@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 class WebRTCService {
   constructor() {
     this.peers = {} // Store peer connections by user ID
+    this.peerMetadata = {} // Store metadata (callId, etc) for each peer
     this.localStream = null
     this.signalListeners = {}
   }
@@ -104,7 +105,8 @@ class WebRTCService {
       })
 
       this.peers[peerId] = peer
-      console.log('✅ Peer created')
+      this.peerMetadata[peerId] = { callId, currentUserId, peerId }
+      console.log('✅ Peer created and metadata stored')
       return peer
     } catch (error) {
       console.error('❌ createPeer error:', error?.message || error)
@@ -179,6 +181,7 @@ class WebRTCService {
       if (peer) {
         peer.destroy()
         delete this.peers[peerId]
+        delete this.peerMetadata[peerId]
         console.log('✅ Peer closed:', peerId)
       }
     } catch (error) {
