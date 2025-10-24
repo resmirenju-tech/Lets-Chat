@@ -90,6 +90,21 @@ export function useWebRTC(callId, userId, peerId, isInitiator, callType = 'voice
         peer.on('open', () => {
           console.log('✅ PeerJS connected, ID:', userId);
           if (isActive) setConnectionState('ready');
+          
+          // Broadcast our PeerJS ID via Supabase so the other user knows who to call
+          const signalChannel = supabase.channel(`call:${callId}`)
+          signalChannel
+            .send({
+              type: 'broadcast',
+              event: 'peer_id',
+              payload: {
+                userId: userId,
+                peerJSId: userId,
+                isInitiator: isInitiator
+              }
+            })
+            .then(() => console.log('📡 PeerJS ID broadcast'))
+            .catch(err => console.error('❌ Error broadcasting PeerJS ID:', err))
         });
 
         peer.on('error', (err) => {
@@ -104,32 +119,41 @@ export function useWebRTC(callId, userId, peerId, isInitiator, callType = 'voice
           console.log('   Local stream:', localStream ? '✅ ready' : '❌ missing');
           if (isActive) setConnectionState('connecting');
 
-          try {
-            const call = peer.call(peerId, localStream);
-            console.log('📱 peer.call() executed');
-            callRef.current = call;
+          // Wait a bit for receiver to connect to PeerJS
+          const callAttempt = () => {
+            try {
+              const call = peer.call(peerId, localStream);
+              console.log('📱 peer.call() executed');
+              callRef.current = call;
 
-            call.on('stream', (remoteStream) => {
-              console.log('🎬 Received remote stream');
-              if (isActive) {
-                setRemoteStream(remoteStream);
-                setConnectionState('connected');
-              }
-            });
+              call.on('stream', (remoteStream) => {
+                console.log('🎬 Received remote stream');
+                if (isActive) {
+                  setRemoteStream(remoteStream);
+                  setConnectionState('connected');
+                }
+              });
 
-            call.on('close', () => {
-              console.log('📵 Call closed');
-              if (isActive) setConnectionState('disconnected');
-            });
+              call.on('close', () => {
+                console.log('📵 Call closed');
+                if (isActive) setConnectionState('disconnected');
+              });
 
-            call.on('error', (err) => {
-              console.error('❌ Call error:', err);
+              call.on('error', (err) => {
+                console.error('❌ Call error:', err);
+                if (isActive) setConnectionState('error');
+              });
+            } catch (err) {
+              console.error('❌ Error making call:', err);
               if (isActive) setConnectionState('error');
-            });
-          } catch (err) {
-            console.error('❌ Error making call:', err);
-            if (isActive) setConnectionState('error');
-          }
+            }
+          };
+
+          // Try calling immediately, but also retry after 2 seconds in case receiver isn't ready
+          callAttempt();
+          const retryTimer = setTimeout(callAttempt, 2000);
+
+          return () => clearTimeout(retryTimer);
         } else {
           // Receiver - wait for incoming call
           console.log('📞 Waiting for incoming call...');
