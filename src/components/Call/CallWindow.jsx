@@ -29,15 +29,27 @@ export default function CallWindow({ call, onEndCall }) {
 
   // Initialize WebRTC connection
   useEffect(() => {
-    if (!call || !currentUser) return
+    if (!call || !currentUser) {
+      console.log('⏳ Waiting for call and user data...')
+      return
+    }
+
+    let isActive = true
 
     const initializeWebRTC = async () => {
       try {
-        console.log('📞 Initializing WebRTC for call:', call.id)
+        console.log('📞 Initializing WebRTC for call:', call?.id)
         
+        if (!call?.id || !call?.initiator_id || !call?.recipient_id) {
+          console.error('❌ Missing required call data')
+          return
+        }
+
         // Determine if user is initiator
         const isInitiator = call.initiator_id === currentUser.id
         const otherUserId = isInitiator ? call.recipient_id : call.initiator_id
+
+        console.log('👤 Initiator:', isInitiator, 'Other user:', otherUserId)
 
         // Create peer connection
         await webrtcService.createPeer(
@@ -47,21 +59,25 @@ export default function CallWindow({ call, onEndCall }) {
           call.id
         )
 
+        if (!isActive) return
+
         // Setup event listeners
         webrtcService.on('stream', (remoteStream) => {
           console.log('🎵 Playing remote stream')
-          playRemoteStream(remoteStream)
+          if (isActive) playRemoteStream(remoteStream)
         })
 
         webrtcService.on('error', (error) => {
           console.error('❌ WebRTC error:', error)
-          toast.error('Connection error: ' + error.message)
+          if (isActive) toast.error('Connection error: ' + error.message)
         })
 
         webrtcService.on('close', () => {
           console.log('📵 Peer connection closed')
-          setConnectionReady(false)
-          setConnectionMessage('Connection lost')
+          if (isActive) {
+            setConnectionReady(false)
+            setConnectionMessage('Connection lost')
+          }
         })
 
         // Subscribe to signals from remote peer
@@ -79,26 +95,31 @@ export default function CallWindow({ call, onEndCall }) {
         )
 
         // Set connection ready
-        setConnectionReady(true)
-        setConnectionMessage('Connected')
-        toast.success('Connected! 🎤')
-        console.log('✅ WebRTC initialized successfully')
+        if (isActive) {
+          setConnectionReady(true)
+          setConnectionMessage('Connected')
+          toast.success('Connected! 🎤')
+          console.log('✅ WebRTC initialized successfully')
+        }
       } catch (error) {
         console.error('Error initializing WebRTC:', error)
-        toast.error('Failed to initialize connection')
-        setConnectionMessage('Connection failed')
+        if (isActive) {
+          toast.error('Failed to initialize connection: ' + error.message)
+          setConnectionMessage('Connection failed')
+        }
       }
     }
 
     initializeWebRTC()
 
     return () => {
+      isActive = false
       if (signalChannelRef.current) {
         signalChannelRef.current.unsubscribe()
       }
       webrtcService.closeAll()
     }
-  }, [call, currentUser?.id])
+  }, [call?.id, currentUser?.id])
 
   // Start timer
   useEffect(() => {
