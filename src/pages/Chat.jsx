@@ -3,7 +3,7 @@ import ConversationList from '@/components/Chat/ConversationList'
 import ChatWindow from '@/components/Chat/ChatWindow'
 import './Chat.css'
 
-export default function Chat() {
+export default function Chat({ onCallInitiated }) {
   const [selectedConversation, setSelectedConversation] = useState(null)
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768)
 
@@ -32,6 +32,7 @@ export default function Chat() {
           <ChatWindow 
             conversation={selectedConversation}
             onBack={() => setSelectedConversation(null)}
+            onCallInitiated={onCallInitiated}
           />
         ) : (
           <div className="chat-placeholder">

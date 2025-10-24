@@ -275,7 +275,7 @@ export default function MainApp() {
 
       {/* Main Content Area */}
       <div className="app-content">
-        {activeTab === 'chat' && <Chat />}
+        {activeTab === 'chat' && <Chat onCallInitiated={(call) => setActiveCall(call)} />}
         {activeTab === 'calls' && <Calls />}
         {activeTab === 'profile' && <Profile />}
         {activeTab === 'settings' && <Settings />}

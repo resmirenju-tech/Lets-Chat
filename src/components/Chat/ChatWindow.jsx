@@ -7,7 +7,7 @@ import MessageList from './MessageList'
 import MessageInput from './MessageInput'
 import './ChatWindow.css'
 
-export default function ChatWindow({ conversation, onBack }) {
+export default function ChatWindow({ conversation, onBack, onCallInitiated }) {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState(null)
@@ -154,7 +154,7 @@ export default function ChatWindow({ conversation, onBack }) {
 
   return (
     <div className="chat-window">
-      <ChatHeader conversation={conversation} onBack={onBack} />
+      <ChatHeader conversation={conversation} onBack={onBack} onCallInitiated={onCallInitiated} />
       <MessageList messages={messages} currentUserId={currentUser?.id} />
       <div ref={messagesEndRef} />
       <MessageInput onSendMessage={handleSendMessage} />

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { callService } from '@/services/callService'
 import { userService } from '@/services/userService'
+import { webrtcService } from '@/services/webrtcService'
 import toast from 'react-hot-toast'
 import './CallWindow.css'
 
@@ -10,49 +11,94 @@ export default function CallWindow({ call, onEndCall }) {
   const [otherUserInfo, setOtherUserInfo] = useState(null)
   const [audioEnabled, setAudioEnabled] = useState(true)
   const [callQuality, setCallQuality] = useState('Good signal')
+  const [currentUser, setCurrentUser] = useState(null)
   const durationInterval = useRef(null)
   const [connectionReady, setConnectionReady] = useState(false)
   const [connectionMessage, setConnectionMessage] = useState('Connecting...')
+  const remoteAudioRef = useRef(null)
+  const signalChannelRef = useRef(null)
 
-  // Initialize call connection
+  // Get current user
   useEffect(() => {
-    const initializeCall = async () => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUser(user)
+    }
+    getCurrentUser()
+  }, [])
+
+  // Initialize WebRTC connection
+  useEffect(() => {
+    if (!call || !currentUser) return
+
+    const initializeWebRTC = async () => {
       try {
-        console.log('📞 Initializing call for:', call.id)
+        console.log('📞 Initializing WebRTC for call:', call.id)
         
-        // Request microphone access
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-          console.log('✅ Microphone access granted')
-          stream.getTracks().forEach(track => track.stop()) // Stop immediately, just checking permission
-        } catch (error) {
-          toast.error('Microphone permission denied. Please allow microphone access.')
-          return
-        }
+        // Determine if user is initiator
+        const isInitiator = call.initiator_id === currentUser.id
+        const otherUserId = isInitiator ? call.recipient_id : call.initiator_id
 
-        // Simulate connection establishment
-        setConnectionMessage('Establishing connection...')
-        
-        // Connection established after 2 seconds
-        const connectionTimer = setTimeout(async () => {
-          setConnectionReady(true)
-          setConnectionMessage('Connected')
-          toast.success('Connected! 🎤')
-          console.log('✅ Call connection established')
-          
-          // Note: acceptCall is now called in MainApp.handleAcceptCall
-          // when user clicks the Accept button, not here
-        }, 2000)
+        // Create peer connection
+        await webrtcService.createPeer(
+          otherUserId,
+          isInitiator,
+          currentUser.id,
+          call.id
+        )
 
-        return () => clearTimeout(connectionTimer)
+        // Setup event listeners
+        webrtcService.on('stream', (remoteStream) => {
+          console.log('🎵 Playing remote stream')
+          playRemoteStream(remoteStream)
+        })
+
+        webrtcService.on('error', (error) => {
+          console.error('❌ WebRTC error:', error)
+          toast.error('Connection error: ' + error.message)
+        })
+
+        webrtcService.on('close', () => {
+          console.log('📵 Peer connection closed')
+          setConnectionReady(false)
+          setConnectionMessage('Connection lost')
+        })
+
+        // Subscribe to signals from remote peer
+        signalChannelRef.current = webrtcService.subscribeToSignals(
+          call.id,
+          (payload) => {
+            console.log('📬 Received signal payload:', payload)
+            const { from, to, data } = payload
+            
+            // Only process signals meant for us
+            if (to === currentUser.id && from === otherUserId) {
+              webrtcService.handleSignal(from, data)
+            }
+          }
+        )
+
+        // Set connection ready
+        setConnectionReady(true)
+        setConnectionMessage('Connected')
+        toast.success('Connected! 🎤')
+        console.log('✅ WebRTC initialized successfully')
       } catch (error) {
-        console.error('Error initializing call:', error)
-        toast.error('Failed to initialize call')
+        console.error('Error initializing WebRTC:', error)
+        toast.error('Failed to initialize connection')
+        setConnectionMessage('Connection failed')
       }
     }
 
-    initializeCall()
-  }, [call])
+    initializeWebRTC()
+
+    return () => {
+      if (signalChannelRef.current) {
+        signalChannelRef.current.unsubscribe()
+      }
+      webrtcService.closeAll()
+    }
+  }, [call, currentUser?.id])
 
   // Start timer
   useEffect(() => {
@@ -88,10 +134,30 @@ export default function CallWindow({ call, onEndCall }) {
     }
   }, [call])
 
+  // Play remote audio stream
+  const playRemoteStream = (remoteStream) => {
+    try {
+      if (remoteAudioRef.current) {
+        remoteAudioRef.current.srcObject = remoteStream
+        remoteAudioRef.current.play().catch(err => {
+          console.warn('Could not auto-play remote stream:', err)
+          // Try to play with user gesture requirement
+          remoteAudioRef.current.play()
+        })
+        console.log('🔊 Remote stream playing')
+      }
+    } catch (error) {
+      console.error('Error playing remote stream:', error)
+    }
+  }
+
   const handleEndCall = async () => {
     if (durationInterval.current) {
       clearInterval(durationInterval.current)
     }
+    
+    webrtcService.stopLocalStream()
+    webrtcService.closeAll()
 
     const result = await callService.endCall(call.id, duration)
     if (result.success) {
@@ -102,6 +168,11 @@ export default function CallWindow({ call, onEndCall }) {
 
   const handleToggleAudio = () => {
     setAudioEnabled(!audioEnabled)
+    if (webrtcService.localStream) {
+      webrtcService.localStream.getAudioTracks().forEach(track => {
+        track.enabled = !audioEnabled
+      })
+    }
     toast.success(audioEnabled ? 'Muted 🔇' : 'Unmuted 🎤')
   }
 
@@ -182,6 +253,8 @@ export default function CallWindow({ call, onEndCall }) {
           <span className="signal-strength">📶 {callQuality}</span>
         </div>
       </div>
+      {/* Hidden audio element for remote stream */}
+      <audio ref={remoteAudioRef} autoPlay={true} />
     </div>
   )
 }

@@ -125,12 +125,12 @@ export default function CallModal({ call, onAccept, onReject }) {
       // Create initial tone
       createRingTone(audioContext)
       
-      // Loop the ringing every 3.5 seconds (full Skype tone duration)
+      // Loop the ringing every 400ms (vintage "tring tring" rhythm)
       const intervalId = setInterval(() => {
         if (audioContextRef.current && audioContextRef.current.state === 'running') {
           createRingTone(audioContextRef.current)
         }
-      }, 3500)
+      }, 400)
       
       timeoutRef.current = intervalId
     } catch (error) {
@@ -140,32 +140,31 @@ export default function CallModal({ call, onAccept, onReject }) {
 
   const createRingTone = (audioContext) => {
     try {
-      // Skype-style caller tone: Four-note ascending melody
-      const notes = [
-        { freq: 523.25, duration: 0.25 },  // C5
-        { freq: 659.25, duration: 0.25 },  // E5
-        { freq: 783.99, duration: 0.25 },  // G5
-        { freq: 1046.50, duration: 0.5 },  // C6 (held longer)
+      // Classic vintage "tring tring" ringtone - old telephone sound
+      // Uses two alternating frequencies to create the iconic bell-like effect
+      const tones = [
+        { freq: 800, startTime: 0, duration: 0.15 },       // High "tring"
+        { freq: 600, startTime: 0.2, duration: 0.15 }      // Low "tring"
       ]
 
-      notes.forEach((note, index) => {
+      tones.forEach(({ freq, startTime, duration }) => {
         const osc = audioContext.createOscillator()
         const gainNode = audioContext.createGain()
 
         osc.connect(gainNode)
         gainNode.connect(audioContext.destination)
 
-        osc.frequency.setValueAtTime(note.freq, audioContext.currentTime + index * 0.25)
+        osc.frequency.setValueAtTime(freq, audioContext.currentTime + startTime)
         osc.type = 'sine'
 
-        // Volume envelope
-        gainNode.gain.setValueAtTime(0, audioContext.currentTime + index * 0.25)
-        gainNode.gain.linearRampToValueAtTime(0.25, audioContext.currentTime + index * 0.25 + 0.05)
-        gainNode.gain.setValueAtTime(0.25, audioContext.currentTime + index * 0.25 + note.duration - 0.1)
-        gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + index * 0.25 + note.duration)
+        // Sharp attack, sustained middle, quick decay (like old bell)
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime + startTime)
+        gainNode.gain.linearRampToValueAtTime(0.25, audioContext.currentTime + startTime + 0.01) // Quick attack
+        gainNode.gain.setValueAtTime(0.25, audioContext.currentTime + startTime + duration - 0.03)
+        gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + startTime + duration)
 
-        osc.start(audioContext.currentTime + index * 0.25)
-        osc.stop(audioContext.currentTime + index * 0.25 + note.duration)
+        osc.start(audioContext.currentTime + startTime)
+        osc.stop(audioContext.currentTime + startTime + duration)
 
         oscillatorsRef.current.push(osc)
       })
